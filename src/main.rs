@@ -1,4 +1,4 @@
-use std::{io::Read, net::{TcpListener, TcpStream}, process::exit};
+use std::{io::{Read, Write}, net::{TcpListener, TcpStream}, process::exit};
 fn main() {
     let port : u64 = 7878;
     match TcpListener::bind(format!("localhost:{}",port)) {
@@ -18,5 +18,9 @@ fn main() {
 fn handler(mut stream:TcpStream){
     let mut buffer = [0u8;1024];
     stream.read(&mut buffer).unwrap();
-    println!("client request:\n{}",String::from_utf8_lossy(&buffer));
+    
+    let response = "HTTP/1.1 200 ok\r\n\r\n";
+
+    stream.write(response.as_bytes()).unwrap();
+    stream.flush().unwrap();
 }
