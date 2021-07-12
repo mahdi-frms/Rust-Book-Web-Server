@@ -1,4 +1,4 @@
-use std::{io::{Read, Write}, net::{TcpListener, TcpStream}, process::exit};
+use std::{fs, io::{Read, Write}, net::{TcpListener, TcpStream}, process::exit};
 fn main() {
     let port : u64 = 7878;
     match TcpListener::bind(format!("localhost:{}",port)) {
@@ -18,8 +18,10 @@ fn main() {
 fn handler(mut stream:TcpStream){
     let mut buffer = [0u8;1024];
     stream.read(&mut buffer).unwrap();
+
+    let content = fs::read_to_string("view/index.html").unwrap();
     
-    let response = "HTTP/1.1 200 ok\r\n\r\n";
+    let response = format!("HTTP/1.1 200 ok\r\nContent-Lenght:{} \r\n\r\n{}",content.len(),content);
 
     stream.write(response.as_bytes()).unwrap();
     stream.flush().unwrap();
