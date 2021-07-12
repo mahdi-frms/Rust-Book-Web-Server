@@ -19,10 +19,18 @@ fn handler(mut stream:TcpStream){
     let mut buffer = [0u8;1024];
     stream.read(&mut buffer).unwrap();
 
-    let content = fs::read_to_string("view/index.html").unwrap();
-    
-    let response = format!("HTTP/1.1 200 ok\r\nContent-Lenght:{} \r\n\r\n{}",content.len(),content);
+    let index_html = b"GET / HTTP/1.1\r\n";
+    if buffer.starts_with(index_html) {
+        serve_page(stream,"HTTP/1.1 200 OK","view/index.html");
+    }
+    else{
+        serve_page(stream,"HTTP/1.1 404 NOT FOUND","view/404.html");
+    }
+}
 
+fn serve_page(mut stream:TcpStream,status_line:&str,path:&str){
+    let content = fs::read_to_string(path).unwrap();
+    let response = format!("{}\r\nContent-Lenght:{} \r\n\r\n{}",status_line,content.len(),content);
     stream.write(response.as_bytes()).unwrap();
     stream.flush().unwrap();
 }
