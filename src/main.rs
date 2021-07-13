@@ -1,13 +1,15 @@
+mod pool;
 use std::{fs, io::{Read, Write}, net::{TcpListener, TcpStream}, process::exit, thread, time::Duration};
+
+use crate::pool::ThreadPool;
 fn main() {
+    let pool = ThreadPool::new(4);
     let port : u64 = 7878;
     match TcpListener::bind(format!("localhost:{}",port)) {
         Ok(listener)=>{
             println!("listening on port {}:",port);
             for stream in listener.incoming().map(|s|s.unwrap()) {
-                thread::spawn(||{
-                    handler(stream);
-                });
+                pool.execute(||handler(stream));
             }
         }
         Err(_)=>{
