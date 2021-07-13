@@ -1,11 +1,13 @@
-use std::{fs, io::{Read, Write}, net::{TcpListener, TcpStream}, process::exit};
+use std::{fs, io::{Read, Write}, net::{TcpListener, TcpStream}, process::exit, thread, time::Duration};
 fn main() {
     let port : u64 = 7878;
     match TcpListener::bind(format!("localhost:{}",port)) {
         Ok(listener)=>{
             println!("listening on port {}:",port);
             for stream in listener.incoming().map(|s|s.unwrap()) {
-                handler(stream);
+                thread::spawn(||{
+                    handler(stream);
+                });
             }
         }
         Err(_)=>{
@@ -19,8 +21,11 @@ fn handler(mut stream:TcpStream){
     let mut buffer = [0u8;1024];
     stream.read(&mut buffer).unwrap();
 
-    let index_html = b"GET / HTTP/1.1\r\n";
-    if buffer.starts_with(index_html) {
+    if buffer.starts_with(b"GET / HTTP/1.1\r\n") {
+        serve_page(stream,"HTTP/1.1 200 OK","view/index.html");
+    }
+    else if buffer.starts_with(b"GET /sleep HTTP/1.1\r\n"){
+        thread::sleep(Duration::from_secs(5));
         serve_page(stream,"HTTP/1.1 200 OK","view/index.html");
     }
     else{
