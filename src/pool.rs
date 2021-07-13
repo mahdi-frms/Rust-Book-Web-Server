@@ -1,9 +1,11 @@
 use std::{sync::{Arc, Mutex, mpsc::{Receiver, Sender, channel}}, thread::{self, JoinHandle}};
-type Job = Box<dyn FnOnce() + Send + 'static>;
+pub enum Job {
+    NewJob(Box<dyn FnOnce() + Send + 'static>),
+    Terminate
+}
 
 pub struct Worker {
-    id:usize,
-    thread:JoinHandle<()>
+    thread:Option<JoinHandle<()>>
 }
 pub struct ThreadPool {
     workers:Vec<Worker>,
@@ -11,13 +13,20 @@ pub struct ThreadPool {
 }
 
 impl Worker {
-    pub fn new(id:usize,reciever:Arc<Mutex<Receiver<Job>>>)->Worker{
-        Worker{id,thread:thread::spawn(move ||{
+    pub fn new(reciever:Arc<Mutex<Receiver<Job>>>)->Worker{
+        Worker{thread:Some(thread::spawn(move ||{
             loop {
                 let job = reciever.lock().unwrap().recv().unwrap();
-                job();
+                match job {
+                    Job::Terminate => break,
+                    Job::NewJob(trd)=>trd(),
+                }
             }
-        })}
+        }))}
+    }
+
+    pub fn end(&mut self){
+        self.thread.take().unwrap().join().unwrap();
     }
 }
 
@@ -26,13 +35,24 @@ impl ThreadPool {
         let (sender,reciever) = channel();
         let receiver = Arc::new(Mutex::new(reciever));
         let mut workers = Vec::with_capacity(thread_count);
-        for id in 0..thread_count {
-            workers.push(Worker::new(id,receiver.clone()));
+        for _ in 0..thread_count {
+            workers.push(Worker::new(receiver.clone()));
         }
         ThreadPool{workers,sender}
     }
 
     pub fn execute<T>(&self,t:T) where T:FnOnce() + Send + 'static{
-        self.sender.send(Box::new(t)).unwrap()
+        self.sender.send(Job::NewJob(Box::new(t))).unwrap()
+    }
+}
+
+impl Drop for ThreadPool {
+    fn drop(&mut self) {
+        for _ in &self.workers {
+            self.sender.send(Job::Terminate).unwrap();
+        }
+        for w in &mut self.workers {
+            w.end();
+        }
     }
 }

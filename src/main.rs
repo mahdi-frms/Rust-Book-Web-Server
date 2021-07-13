@@ -8,7 +8,7 @@ fn main() {
     match TcpListener::bind(format!("localhost:{}",port)) {
         Ok(listener)=>{
             println!("listening on port {}:",port);
-            for stream in listener.incoming().map(|s|s.unwrap()) {
+            for stream in listener.incoming().take(1).map(|s|s.unwrap()) {
                 pool.execute(||handler(stream));
             }
         }
